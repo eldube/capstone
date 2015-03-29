@@ -1,0 +1,152 @@
+---
+title: 'Capstone Project : Exploratory Analysis Milestone Report'
+author: "Enock L. Dube"
+date: "Saturday, March 28, 2015"
+output: html_document
+---
+
+## Introduction
+
+This report serves as a milestone report on the data science specialization capstone project offered by the Johns Hopkins Bloomberg School of Public Health. The main purpose of the project is a build a predictive text data product that could that makes it easier for people to type on their mobile devices. Around the world, people are spending an increasing amount of time on their mobile devices for email, social networking, banking and a whole range of other activities. But typing on mobile devices can be a serious pain. A predictive software product could help reduce the number of keystrokes by predicting the next word such that the user can just selected the word in the sentence from a list instead of typing. 
+
+
+## Data
+
+In partners with Coursera, SwiftKey(http://swiftkey.com/) has provided the data that was used in this project. According to their website, SwiftKey is a company that was founded 2008, and it's mission is to build technology that makes it easy for everyone to create and communicate on mobile. The data is text files compiled from news articles, twitter and blogs in four different languages, namely english, finish, german and russian. For the purposes of this project only the English text files will be used.The data can be downloaded from the following URL: http://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip .
+
+The following R commands can be used to download the data from the provided URL. A listing of all the files is also shown below:
+
+
+```{r downloading, cache=TRUE}
+## Download and unzip file from provided URL
+datafile <- "Coursera-SwiftKey.zip"
+if(!file.exists(datafile)) {
+   fileurl <- "http://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+  download.file(fileurl, destfile = datafile, method = "internal")
+  unzip(datafile)
+}
+# list unzipped files 
+list.files("Coursera-SwiftKey", recursive = TRUE)
+```
+
+
+The English text files to be used for the project are as listed below:
+
+```{r lisingEnglishFiles}
+Eng_TextFiles <- list.files("Coursera-SwiftKey/final/en_US")
+Eng_TextFiles
+
+```
+
+
+## Exploratory Analysis 
+
+### Size of Text Files
+In R the size (in btyes) of each of the English text file can be obtained using the file.info () commnands as shown below
+```{r gettingFileSizes}
+
+fid <- paste("en_US/",Eng_TextFiles, sep="")
+sizes <- paste("Size of ",fid, " = ", file.info(fid)$size, "bytes")
+sizes
+```
+
+
+### Number of Lines in Each Text File
+The number of lines in each of the three English files can be displayed using the following R commands.
+```{r gettingNumLines,warning=FALSE, message=FALSE}
+ library (R.utils)
+getLineCount <- function (filename, sourceDir) {
+  
+  filename <-  paste(sourceDir,"/", filename, sep="")
+  return (countLines(filename))[1]
+}
+#number of lines
+line_count <- sapply(Eng_TextFiles, "en_US", FUN = getLineCount)
+line_count
+```
+
+
+### Data Sampling
+
+As shown in previous section, the three English text files contain a large number of lines and therefore do not easiy fit into primary memory (RAM) for processing. For the purposes of this project, only a sample of the data will be used to build a predictive model. One way of getting samples of the data is to spit one large file into smaller files which can be easily read into memory. Shown below is an illustration of an  R function that was written to split a big file into smaller files.
+
+```{r creatingSampleFiles}
+source("split_TextFiles.R")
+split_Source_TextFile (sourceDir ="en_US", sourceFile="en_US.blogs.txt", 
+targetDir="en_US.blogsSampleData", numLinesPerFile = 1000, numberOfSampleFiles = 10)
+
+list.files("en_US.blogsSampleData")
+```
+In the above example, the function creates 10 sample files from the blogs text file. Each sample file contains 1000 lines of text. These smaller sample files are stored in a directory which can be referred to as the ** corpus ** directory.
+
+
+The above example only shows a sample from the **en_US.blogs.txt ** textfile. However, in order to build a more representative prediction model, samples will be taken from all three files.
+
+### Token Extraction and N-grams
+
+The final next word prediction product will be build using a N-gram model based on the sampled text. It is envisaged that the model will contain unigram (1-gram), bigram (2-gram), trigram (3-gram) and 4-gram extrated from the text. R packages, such as **package tm** will be used and extract the N-gram tokens from the sample text file. Two functions were written to extract the tokens from the data files and store them in a tokens text file. Function **extractNgramsTokensFromFile (filename, corpusDir, appendFlag=TRUE)** extract n-gram tokens from a single text fil. The Second function, **extractNgramsTokensFromCorpus (SourceCorpusDir, appendStatus= TRUE)** calls/uses the first function to extract tokens from a set of files stored in a directory (**corpus**). The R code below shows an example of how the **extractNgramsTokensFromCorpus** can be used to extract tokens from the three(3) samples text files stored in the corpus directory ** ** as created in a previous section in this report. The code below also list the n-gram textv files that were created.
+```{r extractiongTokens, warning=FALSE,message=FALSE}
+source("extractNgramsTokensFromFile.R")
+extractNgramsTokensFromCorpus ("en_US.blogsSampleData") 
+
+#show list of n-gram text files created
+list.files(pattern = "\\.txt$")
+
+```
+
+###Data cleaning
+The extraction function used above were such that undesirable characters such and extra white space were removed from the text. Further cleaning on the outpuut n-gram text files is required to remove profane and other non-english words.
+
+## Building the Language Model
+The N-gram language model can be built from the cleaned up n-gram text files that were created in the previous sections.
+
+### Frequency Tables
+
+N-gram frequency table can be constructed from the text files. Shown below are sample table that were created based on the tokenized files; namely **uniGramTokens.txt**, **biGramTokens.txt**,  and **triGramTokens.txt** . The dat comes from the 10 
+
+```{r constructingFrequencyTables, warning=FALSE, message=FALSE}
+
+#source ("ConstructFrequencyTablesFromTextFiles.R" )
+source ("buildFreqTablesFromTokenFiles.R")
+
+#show sample freq tables
+uniGramFreqTable
+biGramFreqTable
+triGramFreqTable
+
+
+```
+
+The printout above shows a huge different between largest token count and the smallest token count. Shown below is a summary of the unigram counts:
+```{r showingSummary}
+summaryTable <- summary(uniGramFreqTable$count)
+summaryTable
+
+```
+
+
+The average token count in this sample was  `r summaryTable[4]` The histogram below shows a distribution of the unigram tokens count. 
+```{r  plotFrequencyDistribution}
+
+hist(uniGramFreqTable$count, ylim=c(1,25), xlab = "token count", ylab = "Nc(Frequency of token count", breaks=150, main = "Frequency distribution of token counts")
+
+```
+
+
+
+
+### Compute n-gram token probabilities
+
+The n-gram token maximum likelihood probabilities can be computed from the frequency as shown in the R code below: The values shown are based on raw token counts. There is still a need to apply smooting in order to get better predictive probabilities. The good turing smooting technique will be used for this purpose. It is expected that the log in the final model the log values of these probabilities will be used instead of the raw scores.
+
+```{r ComputingProbMatrix, warning=FALSE}
+source("ComputeProbabilityMatrixTables.R" ) 
+unigramMatrix[order(-count),]
+bigramMatrix[order(-count),]
+trigramMatrix[order(-count),]
+
+```
+
+## Way Forward
+
+A reasonable amount of work has been done on this project, but the modelling part is not complete. The data needs more cleaning and removal of undesired words in order to get more accurate predictions. The probabilities need to be recalculated using smoothing to account for non-observed tokens. Finaly the a next word prediction shiny app will be built based on the model.
